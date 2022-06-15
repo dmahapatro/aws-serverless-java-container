@@ -12,4 +12,8 @@ Spring Native - 0.12.0
 **Build**
 `mvn -Pnative clean package`
 
-Copy the `function.zip` from target folder
+Copy the `function.zip` from target folder and deploy to lambda
+
+* Handler - `com.amazonaws.serverless.sample.springboot2.StreamLambdaHandler`
+* Runtime - `Custom runtime on Amazon Linux 2`
+* Architecture - `x86_64`
