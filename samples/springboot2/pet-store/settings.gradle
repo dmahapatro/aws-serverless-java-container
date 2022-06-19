@@ -1,0 +1,11 @@
+pluginManagement {
+  repositories {
+    jcenter()
+    mavenLocal()
+    mavenCentral()
+    gradlePluginPortal()
+    maven { url 'https://repo.spring.io/release' }
+  }
+}
+
+rootProject.name = 'serverless-springboot2-example'

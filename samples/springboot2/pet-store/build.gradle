@@ -1,30 +1,70 @@
-apply plugin: 'java'
+plugins {
+  id 'org.springframework.boot' version '2.7.0'
+  id 'org.springframework.experimental.aot' version '0.12.0'
+  id "com.github.johnrengelman.shadow" version "7.1.2"
+  id 'org.graalvm.buildtools.native' version '0.9.11'
+  id 'java'
+}
 
 repositories {
   jcenter()
   mavenLocal()
   mavenCentral()
+  maven { url 'https://repo.spring.io/release' }
+}
+
+java {
+  toolchain {
+    languageVersion.set(JavaLanguageVersion.of(17))
+  }
 }
 
 dependencies {
-  implementation (
-          implementation('org.springframework.boot:spring-boot-starter-web:2.6.7') {
-            exclude group: 'org.springframework.boot', module: 'spring-boot-starter-tomcat'
-          },
-          'com.amazonaws.serverless:aws-serverless-java-container-springboot2:[1.4,)',
-          'io.symphonia:lambda-logging:1.0.3'
-  )
+  compileOnly 'org.graalvm.nativeimage:svm:22.1.0'
+  implementation 'org.springframework.boot:spring-boot-starter:2.7.0'
+  implementation('org.springframework.boot:spring-boot-starter-web:2.7.0') {
+    exclude group: 'org.springframework.boot', module: 'spring-boot-starter-tomcat'
+    exclude group: 'org.apache.tomcat.embed', module: 'tomcat-embed-core'
+    exclude group: 'org.apache.tomcat.embed', module: 'tomcat-embed-websocket'
+  }
+  implementation 'com.amazonaws.serverless:aws-serverless-java-container-springboot2:1.9-SNAPSHOT'
+  implementation 'com.amazonaws:aws-lambda-java-runtime-interface-client:2.1.1'
   testImplementation("junit:junit")
 }
 
-task buildZip(type: Zip) {
-  from compileJava
-  from processResources
-  into('lib') {
-    from(configurations.compileClasspath) {
-      exclude 'tomcat-embed-*'
+springAot {
+  removeSpelSupport = true
+}
+
+graalvmNative {
+  binaries {
+    main {
+      // Main options
+      imageName = 'app-binary'
+      mainClass = 'com.amazonaws.services.lambda.runtime.api.client.AWSLambda'
+      // debug = true // Determines if debug info should be generated, defaults to false
+      // verbose = true // Add verbose output, defaults to false
+      // fallback = true // Sets the fallback mode of native-image, defaults to false
+      sharedLibrary = false // Determines if image is a shared library, defaults to false if `java-library` plugin isn't included
+      useFatJar = true // Instead of passing each jar individually, builds a fat jar
     }
   }
 }
 
-build.dependsOn buildZip
+task buildNativeZip(type: Zip) {
+  dependsOn nativeCompile
+
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+  from("build/native/nativeCompile") {
+    include("app-binary")
+    fileMode 0777
+  }
+  from("script") {
+    include("bootstrap")
+    fileMode 0777
+  }
+
+  destinationDir(buildDir)
+  baseName = 'function'
+}
